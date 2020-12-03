@@ -1,0 +1,593 @@
+<style>
+* { box-sizing: border-box; }
+table, body { font-size: 16px; }
+.colourgroup { border: none/*0px solid black*/; width:100%; margin: auto; height:100%; border-radius:0%; padding: 40px; }
+.colourgroup .hm { width: 50%; height: 50%; display:inline-block; box-shadow: 1px 1px 15px rgba(0,0,0,0.4); vertical-align: top; padding: 0.4em; transition: 0.25s; }
+.colourgroup .hm:hover {box-shadow: 5px 5px 15px #333; }
+.hm .data { font-size: 2.2em; }
+.piece-blue { background: linear-gradient(to bottom right, #0092dc,#05578D); } 
+.piece-green { background: linear-gradient(to bottom right, #84c21f, #1E8B2B); }
+.piece-red { background: linear-gradient(to bottom right, #dc2418, #E95706); } 
+.piece-yellow { background: linear-gradient(to bottom right, #F9ED12, #caa302); }
+.p-blue { color: #0092dc; } .p-green { color: #84c21f; } .p-red { color: #dc2418; }
+.p-yellow { color: #F9ED12; } .p-white { color: #fff; }
+.board { background:#fff; border: none; width:450px; position: absolute; right: 0; margin-right: 10vw; height:450px; border-collapse: collapse; transform: skew(0deg, 10deg); box-shadow: 4px 4px 30px #333; top: 120px; }
+.board td { border: none; box-shadow: 1px 1px 5px rgba(0,0,0,0.4); padding: 0; position: relative; }
+.board .inner { width:100%; height:100%; }
+.board .inner td, .colourgroup { transition: 0.25s; } .board .inner td:hover, .colourgroup:hover {box-shadow: 5px 5px 15px #444; }
+.board .inner .data { overflow: hidden; white-space: nowrap; font-size: 1.6em; display:block; width:100%; text-align:center; text-shadow: 1px 1px 5px rgba(0,0,0,0.3); position: absolute; left: 0; top: 0; padding: 3px; z-index: 1; }
+.board .inner .data.d1, .board .inner .data.d2, .board .inner .data.d3, .board .inner .data.d4 {  display: inline-block; text-shadow: 1px 1px 2px #333; } 
+.board .inner .data.d1 { margin-left: -3px; margin-top: -0.5px; }
+.board .inner .data.d2 { margin-left: -6px; margin-top: -1px; }
+.board .inner .data.d3 { margin-left: -9px; margin-top: -1.5px; }
+.board .inner .data.d4 { margin-left: -12px; margin-top: -2px; }
+//.board .inner .data .number { font-size: 1px; margin-left:-14px; color: #fff; }
+.board .inner .data.p-white .number { color: #000; }
+.board .inner.n td { width: 33.34%; height: 15%; }
+.board .inner.o td { height: 33.34%; width: 15%; }
+.board .middle { width:calc(100% + 2px); height:calc(100% + 2px); border-collapse:collapse; margin-left: -1px; margin-top: -1px; } 
+.board .middle td { box-shadow:none!important; width:25%; height: 25%;}
+.middle .mid-1 {background: linear-gradient(to bottom left, #dc2418, #E95706 50%, #0092dc 50%, #05578D); }
+.middle .mid-2 {background: linear-gradient(to bottom right, #dc2418, #E95706 50%, #84c21f 50%, #1E8B2B); }
+.middle .mid-3 {background: linear-gradient(to bottom right, #05578D, #0092dc 50%, #F9ED12 50%, #f6c700); }
+.middle .mid-4 {background: linear-gradient(to bottom left, #1E8B2B, #84c21f 50%, #F9ED12 50%, #f6c700); }
+body { background: linear-gradient(#EBBA7B, #a07d50); background-attachment: fixed; padding: 50px 0; font-family: century gothic, arial; }
+.hack_menu { font-family: monospace; padding: 0 10px; color: #fff; }
+.hack_menu h2 { margin: 10px 0; }
+.game-controls.hack_menu { height:400px; position: absolute; left:0; top:0; margin-left: 0; width: 100%; }
+.control-box, .controls { padding: 10px; height: 56px; margin-bottom: 10px;}
+.controls { position: absolute; top: 0; left: 0; background: linear-gradient(to bottom right, #007fda, #420273); width:100%; box-shadow: 2px 2px 10px #333; }
+.b1 { border: none; padding: 7px;  width: 70px; background: #84c21f; color: #fff; font-size: 16px; font-family: century gothic; font-weight: bold; outline:none; margin-right: 10px; }
+body.dark { background: linear-gradient(#333, #311c00); }
+.dark .colourgroup .hm { box-shadow: 1px 1px 10px rgba(0,0,0,0.4); }
+.dark .board td { border: none; box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6); }
+.dark .board { background: #333; box-shadow: 4px 4px 10px rgba(0, 0, 0, 1); }
+
+
+.game-controls { width: calc(100% - 30vw - 450px); box-shadow: 2px 2px 5px #333; height: 350px; margin-left: 10vw; background: #333; position: relative; }
+.game-controls .data { font-size: 95px; padding: 15px; display: inline-block; }
+.game-controls .data i { transition: 2s; }
+.game-controls .data:hover i {text-shadow: 3px 3px 3px #223; color: #fff; }
+.game-controls .action { font-size: 25px; padding: 15px 25px; display: block; vertical-align: top; width: 100%; color: #fff; text-align: center; }
+.hidden { display: none; }
+.dice { position: absolute; right: 30px; bottom: 30px; width: 70px; height: 70px; }
+.cube .box { width: 70px; height: 70px; transform-style: preserve-3d;
+transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); margin: auto; position: relative;
+transform-style: preserve-3d; transition: all 1s ease-in-out; }
+.cube .s1 { transform: rotatex(90deg) translateX(0px) translateY(0px) translateZ(35px); background-color: #FFF; }
+.cube .s2 { transform: rotateY(-90deg) translateX(0px) translateY(0px) translateZ(35px); background-color: #ffaf1c; }
+.cube .s3 { transform: translateX(0px) translateY(0px) translateZ(35px); background-color: #58d568; }
+.cube .s4 { transform: rotateY(90deg) translateX(0px) translateY(0px) translateZ(35px); background-color: #ed3030; }
+.cube .s5 { transform: rotateY(180deg) translateX(0px) translateY(0px) translateZ(35px); background-color: #1c5ffe; }
+.cube .s6 { transform: rotateX(-90deg) translateX(0px) translateY(0px) translateZ(35px); background-color: #f2f215; }
+.box > div { position: absolute; transition: all 0.5s ease-in-out; width: 70px;
+height: 70px; float: left; overflow: hidden; opacity: 0.85; font-size: 67px; padding: 0px 7px; color: #fff; background: #333!important; /*margin-top: 30px;*/ }
+code { background: #777; color: #fff; letter-spacing:1px;}
+@media screen and (max-width: 1024px) {
+  .game-controls { width:80vw; position:relative; height: 120px; z-index: 0; top: 360px; }
+  .game-controls .dice { bottom: 25px; }
+  .board { left: calc(50vw - 220px); position: absolute; margin-top: -75px; z-index: 1; }
+  .game-controls .action { padding: 30px 5px; font-size: 20px; display: inline-block; width: calc(100% - 240px); text-align: left; }
+}
+@media screen and (max-width: 768px) {
+  .game-controls { top: 350px; }
+  .board { width:400px; height:400px; left: calc(50vw - 200px); position: absolute; margin-top: -25px; z-index: 1;  }
+  .game-controls .action { padding: 30px 5px; font-size: 20px; display: inline-block; width: calc(100% - 240px); text-align: left; }
+  table, body { font-size: 14px; }
+}
+@media screen and (max-width: 500px) {
+  .game-controls { width:400px; margin-left: calc(50vw - 200px); }
+  .board { width:400px; height:400px; left: calc(50vw - 200px); position: absolute; margin-top: -25px; z-index: 1;  }
+}
+</style>
+<!--<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="fontawesome/fontawesome.css">
+<body id="body">
+<div class="control-box"><div class="controls"><button class="b1" onclick="document.getElementById('body').classList.toggle('dark');if(this.innerHTML==='Dark'){this.innerHTML='Light';}else{this.innerHTML='Dark';}">Dark</button>
+<button class="b1" onclick="hack_menu();if(this.innerHTML==='Play'){this.innerHTML='Back';}else{this.innerHTML='Play';}">Play</button></div></div>
+
+<table class="board">
+<tr><td style="width:39.5%;height:39.5%;" class="lr"><div class="colourgroup piece-blue">
+<span id="p-100" class="hm"></span><span id="p-101" class="hm"></span><span id="p-102" class="hm"></span><span id="p-103" class="hm"></span></span>
+</div></td>
+<td>
+	<table class="inner n" cellspacing="0">
+	<tr><td id="p-50"></td><td id="p-51"></td><td id="p-52"></td></tr>
+	<tr><td id="p-49"></td><td class="piece-red" id="p-70"></td><td class="piece-red" id="p-1"></td></tr>
+	<tr><td id="p-48"></td><td class="piece-red" id="p-71"></td><td id="p-2"></td></tr>
+	<tr><td id="p-47"></td><td class="piece-red" id="p-72"></td><td id="p-3"></td></tr>
+	<tr><td id="p-46"></td><td class="piece-red" id="p-73"></td><td id="p-4"></td></tr>
+	<tr><td id="p-45"></td><td class="piece-red" id="p-74"></td><td id="p-5"></td></tr>
+	</table>
+</td>
+<td style="width:39.5%"><div class="colourgroup piece-red">
+<span id="p-104" class="hm"></span><span id="p-105" class="hm"></span><span id="p-106" class="hm"></span><span id="p-107" class="hm"></span></div></td></tr>
+<tr><td>
+	<table class="inner o" cellspacing="0">
+	<tr><td id="p-39"></td><td class="piece-blue" id="p-40"></td><td id="p-41"></td><td id="p-42"></td><td id="p-43"></td><td id="p-44"></td></tr>
+	<tr><td id="p-38"></td><td class="piece-blue" id="p-75"></td><td class="piece-blue" id="p-76"></td><td class="piece-blue" id="p-77"></td><td class="piece-blue" id="p-78"></td><td class="piece-blue" id="p-79"></td></tr>
+	<tr><td id="p-37"></td><td id="p-36"></td><td id="p-35"></td><td id="p-34"></td><td id="p-33"></td><td id="p-32"></td></tr>
+	</table>
+</td>
+<td>
+	<table class="middle"><tr><td class="mid-1" id="p-116"></td><td class="mid-2" id="p-117"></td></tr>
+	<tr><td class="mid-3" id="p-118"></td><td class="mid-4" id="p-119"></td></tr></table>
+</td>
+<td>
+	<table class="inner o" cellspacing="0">
+	<tr><td id="p-6"></td><td id="p-7"></td><td id="p-8"></td><td id="p-9"></td><td id="p-10"></td><td id="p-11"></td></tr>
+	<tr><td class="piece-green" id="p-84"></td><td class="piece-green" id="p-83"></td><td class="piece-green" id="p-82"></td><td class="piece-green" id="p-81"></td><td class="piece-green" id="p-80"></td><td id="p-12"></td></tr>
+	<tr><td id="p-18"></td><td id="p-17"></td><td id="p-16"></td><td id="p-15"></td><td class="piece-green" id="p-14"></td><td id="p-13"></td></tr>
+	</table>
+</td></tr>
+<tr><td style="height:39.5%"><div class="colourgroup piece-yellow">
+<span id="p-108" class="hm"></span><span id="p-109" class="hm"></span><span id="p-110" class="hm"></span><span id="p-111" class="hm"></span></div></td>
+<td>
+	<table class="inner n" cellspacing="0">
+	<tr><td id="p-31"></td><td class="piece-yellow" id="p-89"></td><td id="p-19"></td></tr>
+	<tr><td id="p-30"></td><td class="piece-yellow" id="p-88"></td><td id="p-20"></td></tr>
+	<tr><td id="p-29"></td><td class="piece-yellow" id="p-87"></td><td id="p-21"></td></tr>
+	<tr><td id="p-28"></td><td class="piece-yellow" id="p-86"></td><td id="p-22"></td></tr>
+	<tr><td class="piece-yellow" id="p-27"></td><td class="piece-yellow" id="p-85"></td><td id="p-23"></td></tr>
+	<tr><td id="p-26"></td><td id="p-25"></td><td id="p-24"></td></tr>
+	</table>
+</td>
+<td><div class="colourgroup piece-green">
+<span id="p-112" class="hm"></span><span id="p-113" class="hm"></span><span id="p-114" class="hm"></span><span id="p-115" class="hm"></span></div></td></tr>
+</table>
+
+<div class="hidden" id="hidden"></div>
+<div class="game-controls" id="game_controls">
+	<span class="data" id="current_turn"></span>
+	<span class="action" id="current_action"></span>
+	<div class="cube dice" onclick="dice_click()">
+	    <div id="cube_dice" class="box">
+	        <div class="s1"><i class="fas fa-dice-one"></i></div>
+	        <div class="s2"><i class="fas fa-dice-two"></i></div>
+	        <div class="s3"><i class="fas fa-dice-three"></i></div>
+	        <div class="s4"><i class="fas fa-dice-four"></i></div>
+	        <div class="s5"><i class="fas fa-dice-five"></i></div>
+	        <div class="s6"><i class="fas fa-dice-six"></i></div>
+	    </div>
+	</div>
+</div>
+
+<script>
+// dice control
+var cubex = -22, cubey = -38, cubez = 0;
+var cube_fx = 0, cube_fy = -38, cube_fz = 0;
+var front = 3; var flipped = false; var righted = false; var rc = 0;
+function rotate(variableName, degrees) {
+    window[variableName] = (window[variableName] + degrees) % 36000;
+    rot_cube(cubex, cubey, cubez);
+}
+function rot_cube(degx, degy, degz){
+    segs = "rotateX("+degx+"deg) rotateY("+degy+"deg) rotateZ("+degz+"deg) translateX(0) translateY(0) translateZ(0)";
+    document.getElementById('cube_dice').style.transform = segs;
+}
+function turn_cube(where) {
+	if(where == 1 || where == -1) {
+		rotate("cubey", 90*where); 
+		if(!flipped) where*=-1; 
+		if(righted) {
+			if(front == 1 && where == 1) front = 5;
+			else if(front == 5 && where == -1) front = 1;
+			else if(front == 3 && where == -1) front = 6;
+			else if(front == 6 && where == 1) front = 3;
+			else if(front == 6 && where == -1) front = 5;
+			else if(front == 5 && where == 1) front = 6;
+			else if(front == 1 && where == -1) front = 3;
+			else if(front == 3 && where == 1) front = 1;
+		} else {
+			if(front == 5 && where == 1) front = 2;
+			else if(front == 2 && where == -1) front = 5;
+			else front = (front+1*where) % 6;
+		}
+	} else {
+		rotate("cubez", 90);
+		if(!flipped && !righted) {
+			if(front == 1) front = 4; else if(front == 6) front = 2;
+			else if(front == 2) front = 6; else if(front == 4) front = 1;
+		} else if(!flipped && righted) {
+			if(front == 1) front = 2; else if(front == 6) front = 4;
+			else if(front == 2) front = 6; else if(front == 4) front = 1;
+		} else if(flipped && !righted) {
+			if(front == 4) front = 1; else if(front == 2) front = 6;
+			else if(front == 6) front = 4; else if(front == 1) front = 4;
+		} else {
+			if(front == 4) front = 1; else if(front == 2) front = 6;
+			else if(front == 6) front = 4; else if(front == 1) front = 2;
+		}
+		if(righted) { righted = false; rc++; } else { righted = true; rc++; }
+		if(rc == 2) { rc = 0; if(flipped) flipped = false; else flipped = true; }
+	}
+}
+</script>
+<script>
+var spawns = {blue:[100,101,102,103],red:[104,105,106,107],yellow:[108,109,110,111],green:[112,113,114,115]};
+var inside = {blue:116,red:117,yellow:118,green:119};
+var about_inside = {blue:38,red:51,yellow:25,green:12};
+var inside_start = {blue:[75,76,77,78,79],red:[70,71,72,73,74],yellow:[80,81,82,83,84],green:[75,76,77,78,79]};
+var safehouses = [1,14,27,40];
+var initial_pos = {blue:40,red:1,yellow:27,green:14};
+var piece_location = {blue:[-1,-1,-1,-1],red:[-1,-1,-1,-1],yellow:[-1,-1,-1,-1],green:[-1,-1,-1,-1]};
+var types = ["blue", "red", "yellow", "green"];
+
+var current_turn = "";
+var current_action = "";
+var turn_stack = [];
+var dice_rolling = false;
+var do_nothing = false; 
+
+var dice_roll_msg = "Waiting for dice roll";
+var piece_select_msg = "Waiting to select piece";
+function initialize() {
+	current_turn = "red";
+	current_action = dice_roll_msg;
+	gui_remove_ghosts();
+	for(var i = 0; i < types.length; i++) {
+		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			piece_location[types[i]][j] = spawns[types[i]][j];
+		}
+	}
+	gui_updater(); 
+	text_updater();
+	dice_rolling = false;
+}
+function text_updater() { 
+	var result = current_action; 
+	if(turn_stack.length > 0) { result += ("<br>Next Move: " + turn_stack); }
+	document.getElementById('current_action').innerHTML = result;
+	document.getElementById('current_turn').innerHTML = '<i class="fas fa-dot-circle p-'+current_turn+'"></i>';
+}
+function display_error(message, time = 2000) {
+	document.getElementById('current_action').innerHTML = message; 
+	setTimeout(function(e) { text_updater(); }, time);
+}
+function inside_start_move_validity(piece_type, piece_number, number) {
+	if(piece_type == "blue") {   if(piece_location[piece_type][piece_number] + number <= 80) return true; }
+	if(piece_type == "red") {    if(piece_location[piece_type][piece_number] + number <= 75) return true; }
+	if(piece_type == "yellow") { if(piece_location[piece_type][piece_number] + number <= 90) return true; }
+	if(piece_type == "green") {  if(piece_location[piece_type][piece_number] + number <= 85) return true; }
+	return false;
+}
+function send_piece_home(type, index) {
+	for(var i = 0; i < spawns[type].length; i++) {
+		var occupation = find_arr_2d(piece_location, spawns[type][i], types);
+		if(occupation.length == 0) {
+			piece_location[type][index] = spawns[type][i];
+		}
+	}
+}
+function kill_piece(to_check, killer) {
+	for(var i = 0; i < types.length; i++) {
+		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			if(piece_location[types[i]][j] == to_check && types[i] != killer) {
+				send_piece_home(types[i], [j]);
+			}
+		}
+	}
+}
+function go_inside_start(piece_type, piece_number, number) {
+	var cur_pos = piece_location[piece_type][piece_number];
+	if(cur_pos <= about_inside[piece_type] && cur_pos + number > about_inside[piece_type]) {
+		number = number - (about_inside[piece_type] - cur_pos);
+		cur_pos = inside_start[piece_type][0] + number - 1;
+		piece_location[piece_type][piece_number] = cur_pos;
+		return true;
+	}
+	return false;	
+}
+function traverse_piece(piece_type, piece_number, number) {
+	if(piece_location[piece_type][piece_number] == -1) return;
+
+	var location = get_location_type(piece_location[piece_type][piece_number]);
+	if(location == "spawn" && number == 6) piece_location[piece_type][piece_number] = initial_pos[piece_type];
+	if(location == "outside" || location == "safe") { 
+		if(go_inside_start(piece_type, piece_number, number) == false) { 
+			piece_location[piece_type][piece_number] += number; 
+			if(piece_location[piece_type][piece_number] > 52) piece_location[piece_type][piece_number] -= 52;
+		}
+		if(get_location_type(piece_location[piece_type][piece_number]) == "outside") kill_piece(piece_location[piece_type][piece_number], piece_type);
+	}
+	if(location == "inside_start") {
+		piece_location[piece_type][piece_number] += number;
+		if(piece_type == "blue") {   if(piece_location[piece_type][piece_number] == 80) 
+			piece_location[piece_type][piece_number] = inside[piece_type]; }
+		if(piece_type == "red") {    if(piece_location[piece_type][piece_number] == 75)
+			piece_location[piece_type][piece_number] = inside[piece_type]; }
+		if(piece_type == "yellow") { if(piece_location[piece_type][piece_number] == 90)
+			piece_location[piece_type][piece_number] = inside[piece_type]; }
+		if(piece_type == "green") {  if(piece_location[piece_type][piece_number] == 85)
+			piece_location[piece_type][piece_number] = inside[piece_type]; }
+	}
+}
+function can_move_a_piece(piece_type, piece_number, number) {
+	if(piece_location[piece_type][piece_number] == -1) return false;
+
+	var location = get_location_type(piece_location[piece_type][piece_number]);
+	if(location == "spawn" && number == 6) return true;
+	if(location == "inside_start" && inside_start_move_validity(piece_type, piece_number, number)) return true;
+	if(location == "outside" || location == "safe") return true;
+	return false;
+}
+function can_move_pieces(piece_type, new_turn_stack) {
+	var old_piece_location = [];
+	for(var i = 0; i < types.length; i++) {
+		old_piece_location[types[i]] = Array.from(piece_location[types[i]]);
+	}
+	var old_stack = turn_stack;
+	turn_stack = new_turn_stack;
+	for(var i = 0; i < piece_location[piece_type].length; i++) {
+		for(var j = 0; j < new_turn_stack.length; j++) {
+			if(new_turn_stack[j] != -1 && can_move_a_piece(piece_type, i, new_turn_stack[j])) {
+				traverse_piece(piece_type, i, new_turn_stack[j]);
+				new_turn_stack[j] = -1; i--;
+			}
+		}
+	}
+	turn_stack = old_stack;
+	piece_location = old_piece_location;
+	for(var i = 0; i < new_turn_stack.length; i++) if(new_turn_stack[i] != -1) return false;
+	return true;
+}
+function permutation(array) {
+    function p(array, temp) {
+        var i, x;
+        if (!array.length) {
+            result.push(temp);
+        }
+        for (i = 0; i < array.length; i++) {
+            x = array.splice(i, 1)[0];
+            p(array, temp.concat(x));
+            array.splice(i, 0, x);
+        }
+    }
+
+    var result = [];
+    p(array, []);
+    return result;
+}
+function can_move_validly() {
+	var perms = permutation(turn_stack);
+	for(var i = 0; i < perms.length; i++) {
+		if(can_move_pieces(current_turn, perms[i])) return true;
+	}
+	return false;
+}
+function game_over() {
+	var valid = false;
+	for(var i = 0; i < types.length; i++) {
+		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			if(piece_location[types[i]][j] != -1 && 
+			get_location_type(piece_location[types[i]][j]) != "inside") {
+				return false;
+			}
+		}
+	}
+	display_error("Game Over!"); return true;
+}
+function next_turn() {
+	var next_tur = "";
+	if(current_turn == "blue") { next_tur = "red"; }
+	else if(current_turn == "red") { next_tur = "green"; }
+	else if(current_turn == "green") { next_tur = "yellow"; }
+	else if(current_turn == "yellow") { next_tur = "blue"; }
+	var valid = false;
+	for(var i = 0; i < piece_location[next_tur].length; i++) {
+		if(piece_location[next_tur][i] != -1 && 
+		get_location_type(piece_location[next_tur][i]) != "inside") {
+			valid = true;
+			current_turn = next_tur;
+			current_action = dice_roll_msg;
+			setTimeout(function(e){ text_updater(); display_error("It's "+next_tur+"'s turn!");}, 1000);
+		}
+	}
+	if(!valid) { current_turn = next_tur; if(!game_over()) next_turn(); }
+}
+function turn_add(number) {
+	if(number != 6) current_action = piece_select_msg;
+	turn_stack.unshift(number);
+	if(can_move_validly()) return;
+
+	do_nothing = true;
+	setTimeout(function(e) { /*display_error("No valid moves!", 3000);*/ turn_stack = [];
+	next_turn(); do_nothing = false; }, 1500);
+}
+function turn_remove(type, index) {
+	if(turn_stack.length == 0) { display_error("No move in stack!"); return; }
+	if(turn_stack.length >= 2) {
+		if(get_location_type(piece_location[type][index] == "spawn")) {
+			var temp = turn_stack[0]; turn_stack[0] = turn_stack[1]; turn_stack[1] = temp;
+		}
+	}
+	if(can_move_a_piece(type, index, turn_stack[0])) {
+		traverse_piece(type, index, turn_stack[0]);
+		turn_stack.shift();
+		if(turn_stack.length == 0) { next_turn(); }
+	} else { display_error("Can not move this piece! (no path)"); }
+}
+function dice_roll() {
+	for(var i = 0; i < 25; i++) { turn_cube(parseInt(Math.random() * 3) - 1); }
+}
+function fun_randomize_safehouses() {
+	var tmp = ["red","green","yellow","blue"];
+	for(var i = 0; i < safehouses.length; i++) {
+		document.getElementById("p-"+safehouses[i]).classList.remove("piece-"+tmp[i]);
+		safehouses[i] = safehouses[i] + (parseInt(Math.random() * 11) - 6);
+		if(safehouses[i] <= 0) safehouses[i] = 52 + safehouses[i]; if(safehouses[i] > 52) safehouses[i] = 52 - safehouses[i];
+		document.getElementById("p-"+safehouses[i]).classList.add("piece-"+tmp[i]);		
+	}
+}
+function fun_randomize_pieces() {
+	gui_remove_ghosts();
+	for(var i = 0; i < types.length; i++) {
+		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			piece_location[types[i]][j] = parseInt(Math.random() * 51) + 1;
+		}
+	}
+	gui_updater();
+}
+function fake_turn(who) {
+	current_turn = who;
+	text_updater();
+}
+function dice_fake_click(value) {
+	var roll = false;
+	if(do_nothing) return;
+	if(dice_rolling) { display_error("PATIENCE!"); return; }
+	if(turn_stack.length == 0) {
+		dice_roll(); roll = true; dice_rolling = true;
+	} else {
+		if(turn_stack[0] == 6) {
+			dice_roll(); roll = true; dice_rolling = true;
+		} else { display_error("Can not roll dice again!"); }
+	}
+	if(roll) { turn_add(value); text_updater(); dice_rolling = false; }
+}
+function fake_position(type, index, value) {
+	gui_remove_ghosts();
+	piece_location[type][index] = value;
+	gui_updater();
+}
+function dice_click(type, index) {
+	var roll = false;
+	if(do_nothing) return;
+	if(dice_rolling) { display_error("PATIENCE!"); return; }
+	if(turn_stack.length == 0) {
+		dice_roll(); roll = true; dice_rolling = true;
+	} else {
+		if(turn_stack[0] == 6) {
+			dice_roll(); roll = true; dice_rolling = true;
+		} else { display_error("Can not roll dice again!"); }
+	}
+	if(roll) setTimeout(function(e) { turn_add(front); text_updater(); dice_rolling = false; }, 2000);
+}
+function find_correct_click(type, index) {
+	var fake = piece_location[type][index];
+	for(var i = 0; i < piece_location[current_turn].length; i++) {
+		if(piece_location[current_turn][i] == fake) {
+			return i;
+		}
+	}
+	return -1;
+}
+function piece_click(type, index) {
+	if(do_nothing) return;
+	if(turn_stack.length > 0 && turn_stack[0] != 6) {
+		if(type == current_turn) {
+			gui_remove_ghosts();
+			turn_remove(type, index);
+			gui_updater();
+			text_updater();
+		} else {
+			var correction = find_correct_click(type, index); 
+			if(correction == -1) display_error("Select your own piece!");
+			else piece_click(current_turn, correction); 
+		}
+	} else { display_error("Need to roll dice!"); }
+}
+function find_arr(what, value) {
+	for(var i = 0; i < what.length; i++) { if(what[i] == value) return true; } return false;
+}
+function find_arr_2d(what, value, keys) {
+	var occur = [];
+	for(var i = 0; i < keys.length; i++) { 
+		for(var j = 0; j < what[keys[i]].length; j++) {
+			if(what[keys[i]][j] == value) occur.push([keys[i], j]); 
+		} 
+	} 
+	return occur;
+}
+function get_location_type(location) {
+	if(find_arr(spawns["blue"], location) || find_arr(spawns["red"], location) ||
+	find_arr(spawns["yellow"], location) || find_arr(spawns["green"], location)) {
+		return "spawn";
+	}
+	if(find_arr(inside_start["blue"], location) || find_arr(inside_start["red"], location) ||
+	find_arr(inside_start["yellow"], location) || find_arr(inside_start["green"], location)) 
+{
+		return "inside_start";
+	}
+	if(inside["blue"] == location || inside["red"] == location || 
+	inside["yellow"] == location || inside["green"] == location) {
+		return "inside";
+	}
+	if(find_arr(safehouses, location)) return "safe";
+	if(location == -1) return "void";
+	return "outside";
+}
+function gui_updater() {
+	var types = ["blue", "red", "yellow", "green"];
+	var multiples = []; 
+	for(var i = 0; i < types.length; i++) {
+		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			if(piece_location[types[i]][j] != -1) {
+				var do_something = true;
+				var positions = find_arr_2d(piece_location, piece_location[types[i]][j], types); 
+				if(positions.length != 1) {
+					if(find_arr(multiples, piece_location[types[i]][j]) === false) {
+						for(var k = 0; k < positions.length; k++) multiples.push(positions[k][1]);
+					} else { do_something = false; }
+				}
+				if(do_something) piece_generator(positions);
+			}
+		}
+	}
+}
+function piece_loc_indexes(loc_arr) {
+	return (piece_location[loc_arr[0]][loc_arr[1]]);
+}
+function gui_piece_colour(piece) {
+	var ltype = get_location_type(piece_loc_indexes(piece));
+	//var colour = "white";
+	colour = piece[0];
+	if(ltype == "spawn") { colour = "white"; }
+	return colour;g
+}
+function piece_generator(pieces) {
+	result = '';
+	for(var i = 0; i < pieces.length; i++) {
+		result += '<span class="data p-'+gui_piece_colour(pieces[i])+' d'+i+'" onclick="piece_click(\''+pieces[i][0]+'\', '+pieces[i][1]+')"><i class="fas fa-dot-circle t0"></i></span>';
+	}
+	document.getElementById("p-"+piece_loc_indexes(pieces[0])).innerHTML = result;
+}
+function gui_remove_ghosts() {
+	for(var i = 0; i < types.length; i++) {
+		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			if(piece_location[types[i]][j] != -1)
+				document.getElementById("p-"+piece_location[types[i]][j]).innerHTML = "";
+		}
+	}
+}
+function hack_menu() {
+	if(document.getElementById('hidden').innerHTML == "") {
+		document.getElementById('hidden').innerHTML = document.getElementById('game_controls').innerHTML;
+		var data = `<div class="game-controls hack_menu"><h2>Console</h2>
+		<b>Tested built in functions:</b><br>
+		<code title="will change current piece, piece_type is string (red/green/yellow/blue)">fake_turn(piece_type)</code><br>
+		<code title=' will change position of piece "index" of "type". type is string (red/green/yellow/blue), index is 0-3 and value may be 1-52 etc'>fake_position(type, index, value)</code><br>
+		<code title=' will roll dice with "value"'>dice_fake_click(value)</code><br>
+		<code title=' make board pieces random'>fun_randomize_pieces()</code><br>
+		<code title=' make board safehouses random'>fun_randomize_safehouses()</code><br>
+		<b>Data Structures:</b><br>
+		<code title='Spawn locations `+JSON.stringify(spawns)+`'>var spawns</code>
+		<code title='Winning positions `+JSON.stringify(inside)+`'>var inside</code>
+		<code title='Last index before house starts `+JSON.stringify(about_inside)+`'>var about_inside</code>
+		<code title='Indexes at which house starts & ends `+JSON.stringify(inside_start)+`'>var inside_start</code>
+		<code title='Safe positions (non-killable) `+JSON.stringify(safehouses)+`'>var safehouses</code>
+		<code title='Initial positions to move from spawn to `+JSON.stringify(initial_pos)+`'>var initial_pos </code>
+		<code title='Current location of pieces `+JSON.stringify(piece_location)+`'>var piece_location</code>
+		<code title='Key pairs for types `+JSON.stringify(types)+`'>var types</code><br>
+		<code id="hack-code-op" style="display:block;margin-top:5px;"></code>
+		<textarea style="width:100%;color:#fff;background:rgba(255,255,255,0.2);margin:5px 0;outline:none" rows="4" id="hack-code"></textarea><button class="b1" onclick="var temp = eval(document.getElementById('hack-code').value); if(!temp) { temp = 'OK'; } document.getElementById('hack-code-op').innerHTML = temp;">RUN</button>
+		</div>`; 
+		document.getElementById('game_controls').innerHTML = data;
+	} else {
+		document.getElementById('game_controls').innerHTML = document.getElementById('hidden').innerHTML; 
+		document.getElementById('hidden').innerHTML = ""; 
+	}
+}
+initialize();
+</script>
