@@ -222,37 +222,40 @@ var do_nothing = false;
 
 var dice_roll_msg = "Waiting for dice roll";
 var piece_select_msg = "Waiting to select piece";
+// Initializes/Resets the game board
 function initialize() {
 	current_turn = "red";
 	current_action = dice_roll_msg;
+	// Remove already present pieces
 	gui_remove_ghosts();
+	// Put them on the correct spawn location
 	for(var i = 0; i < types.length; i++) {
 		for(var j = 0; j < piece_location[types[i]].length; j++) {
 			piece_location[types[i]][j] = spawns[types[i]][j];
 		}
 	}
+	// Re-populate pieces on the board
 	gui_updater(); 
+	// Give the user a nice message
 	text_updater();
+	// Dice is NOT rolling
 	dice_rolling = false;
 }
+// Write text on the left side	
 function text_updater() { 
 	var result = current_action; 
 	if(turn_stack.length > 0) { result += ("<br>Next Move: " + turn_stack); }
 	document.getElementById('current_action').innerHTML = result;
 	document.getElementById('current_turn').innerHTML = '<i class="fas fa-dot-circle p-'+current_turn+'"></i>';
 }
+// Write error on the left side
 function display_error(message, time = 2000) {
 	document.getElementById('current_action').innerHTML = message; 
 	setTimeout(function(e) { text_updater(); }, time);
 }
-function inside_start_move_validity(piece_type, piece_number, number) {
-	if(piece_type == "blue") {   if(piece_location[piece_type][piece_number] + number <= 80) return true; }
-	if(piece_type == "red") {    if(piece_location[piece_type][piece_number] + number <= 75) return true; }
-	if(piece_type == "yellow") { if(piece_location[piece_type][piece_number] + number <= 90) return true; }
-	if(piece_type == "green") {  if(piece_location[piece_type][piece_number] + number <= 85) return true; }
-	return false;
-}
+// Send a piece to its home location by finding it
 function send_piece_home(type, index) {
+	// Find a free spot in home
 	for(var i = 0; i < spawns[type].length; i++) {
 		var occupation = find_arr_2d(piece_location, spawns[type][i], types);
 		if(occupation.length == 0) {
@@ -260,17 +263,23 @@ function send_piece_home(type, index) {
 		}
 	}
 }
+// Check if a piece is being killed, if so send home if it's not the same type
 function kill_piece(to_check, killer) {
+	// Check for all types
 	for(var i = 0; i < types.length; i++) {
+		// Check for all pieces
 		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			// Yes this piece overlaps with some other piece and types are different
 			if(piece_location[types[i]][j] == to_check && types[i] != killer) {
 				send_piece_home(types[i], [j]);
 			}
 		}
 	}
 }
+// Check & Place inside "goal lane" if the piece has completed the game cycle	
 function go_inside_start(piece_type, piece_number, number) {
 	var cur_pos = piece_location[piece_type][piece_number];
+	// Will adding turn result end up in this piece going beyond the max limit for this colour?
 	if(cur_pos <= about_inside[piece_type] && cur_pos + number > about_inside[piece_type]) {
 		number = number - (about_inside[piece_type] - cur_pos);
 		cur_pos = inside_start[piece_type][0] + number - 1;
@@ -279,20 +288,39 @@ function go_inside_start(piece_type, piece_number, number) {
 	}
 	return false;	
 }
+// Move the piece of "piece_type" colour and "piece_number" index by "number" amount	
 function traverse_piece(piece_type, piece_number, number) {
-	if(piece_location[piece_type][piece_number] == -1) return;
+	// Invalid piece
+	if(piece_location[piece_type][piece_number] == -1) 
+		return;
 
+	// Find the type of location it is in
 	var location = get_location_type(piece_location[piece_type][piece_number]);
-	if(location == "spawn" && number == 6) piece_location[piece_type][piece_number] = initial_pos[piece_type];
+	
+	// Moving it from spawn => go start at the initial location for the piece
+	if(location == "spawn" && number == 6) 
+		piece_location[piece_type][piece_number] = initial_pos[piece_type];
+	
+	// It exists somewhere in the white locations or one of the safe marked locations; where it can move
 	if(location == "outside" || location == "safe") { 
+		// Move piece to "goal lane" if needed
 		if(go_inside_start(piece_type, piece_number, number) == false) { 
+			// Piece doesn't need to be moved to "goal lane" yet, just add
 			piece_location[piece_type][piece_number] += number; 
-			if(piece_location[piece_type][piece_number] > 52) piece_location[piece_type][piece_number] -= 52;
+			// Cheap Modulus (0-52 is a continuous cycle of the white locations)
+			if(piece_location[piece_type][piece_number] > 52) 
+				piece_location[piece_type][piece_number] -= 52;
 		}
-		if(get_location_type(piece_location[piece_type][piece_number]) == "outside") kill_piece(piece_location[piece_type][piece_number], piece_type);
+		// We're still outside, Kill a piece, if there exists any at this new location
+		if(get_location_type(piece_location[piece_type][piece_number]) == "outside") 
+			kill_piece(piece_location[piece_type][piece_number], piece_type);
 	}
+	
+	// Piece is in "goal lane" where it is about to finish its journey
 	if(location == "inside_start") {
 		piece_location[piece_type][piece_number] += number;
+		// If this new location has ended them up in the finishing spot, physically move them to the finishing
+		// Spot, Move validation exists elsewhere so we can be sure that this is a valid move
 		if(piece_type == "blue") {   if(piece_location[piece_type][piece_number] == 80) 
 			piece_location[piece_type][piece_number] = inside[piece_type]; }
 		if(piece_type == "red") {    if(piece_location[piece_type][piece_number] == 75)
@@ -303,35 +331,60 @@ function traverse_piece(piece_type, piece_number, number) {
 			piece_location[piece_type][piece_number] = inside[piece_type]; }
 	}
 }
+// Can I move this piece by "number" amount?
 function can_move_a_piece(piece_type, piece_number, number) {
-	if(piece_location[piece_type][piece_number] == -1) return false;
-
+	if(piece_location[piece_type][piece_number] == -1) 
+		return false;
 	var location = get_location_type(piece_location[piece_type][piece_number]);
-	if(location == "spawn" && number == 6) return true;
-	if(location == "inside_start" && inside_start_move_validity(piece_type, piece_number, number)) return true;
-	if(location == "outside" || location == "safe") return true;
+	if(location == "spawn" && number == 6) 
+		return true;
+	if(location == "inside_start" && inside_start_move_validity(piece_type, piece_number, number)) 
+		return true;
+	if(location == "outside" || location == "safe") 
+		return true;
 	return false;
 }
+// Can this piece be moved forward without exceeding the "goal" position?	
+function inside_start_move_validity(piece_type, piece_number, number) {
+	if(piece_type == "blue") {   if(piece_location[piece_type][piece_number] + number <= 80) return true; }
+	if(piece_type == "red") {    if(piece_location[piece_type][piece_number] + number <= 75) return true; }
+	if(piece_type == "yellow") { if(piece_location[piece_type][piece_number] + number <= 90) return true; }
+	if(piece_type == "green") {  if(piece_location[piece_type][piece_number] + number <= 85) return true; }
+	return false;
+}
+// Can this set of moves be applied to the pieces that exist for a specific type? 
+// (e.g. 6,2 can not be applied if no piece needs to come out and the last piece is 1 behind goal)
+// This function needs to be called for ALL combination of moves (Haven't tried making it more efficient)
 function can_move_pieces(piece_type, new_turn_stack) {
+	// We're going to simulate piece movements, better store the current positions in a copy
 	var old_piece_location = [];
 	for(var i = 0; i < types.length; i++) {
 		old_piece_location[types[i]] = Array.from(piece_location[types[i]]);
 	}
 	var old_stack = turn_stack;
+	// Start the simulation
 	turn_stack = new_turn_stack;
+	// Loop all pieces
 	for(var i = 0; i < piece_location[piece_type].length; i++) {
+		// Loop all moves
 		for(var j = 0; j < new_turn_stack.length; j++) {
+			// I have a turn left and I can move
 			if(new_turn_stack[j] != -1 && can_move_a_piece(piece_type, i, new_turn_stack[j])) {
 				traverse_piece(piece_type, i, new_turn_stack[j]);
 				new_turn_stack[j] = -1; i--;
 			}
 		}
 	}
+	// End simulation
 	turn_stack = old_stack;
 	piece_location = old_piece_location;
-	for(var i = 0; i < new_turn_stack.length; i++) if(new_turn_stack[i] != -1) return false;
+	// Am I still left with moves? If yes then I can't apply my dice roll
+	for(var i = 0; i < new_turn_stack.length; i++) 
+		if(new_turn_stack[i] != -1)
+			return false;
 	return true;
 }
+// Get all combinations of an array	
 function permutation(array) {
     function p(array, temp) {
         var i, x;
@@ -349,15 +402,23 @@ function permutation(array) {
     p(array, []);
     return result;
 }
+// Can this set of moves AND all of its combinations be applied to the pieces that exist for a specific type? 
+// (e.g. 6,2 can not be applied if no piece needs to come out and the last piece is 1 behind goal)	
 function can_move_validly() {
+	// Find all combinations
 	var perms = permutation(turn_stack);
+	// Apply the combinations till something works
 	for(var i = 0; i < perms.length; i++) {
-		if(can_move_pieces(current_turn, perms[i])) return true;
+		if(can_move_pieces(current_turn, perms[i])) 
+			return true;
 	}
 	return false;
 }
+// Game Over?	
 function game_over() {
 	var valid = false;
+	// Check if any piece of any type still outside
+	// (I think I should check if N-1/N players have already finished instead? Oh well)
 	for(var i = 0; i < types.length; i++) {
 		for(var j = 0; j < piece_location[types[i]].length; j++) {
 			if(piece_location[types[i]][j] != -1 && 
@@ -366,51 +427,85 @@ function game_over() {
 			}
 		}
 	}
-	display_error("Game Over!"); return true;
+	display_error("Game Over!"); 
+	return true;
 }
+// Pass the turn to the next player
 function next_turn() {
 	var next_tur = "";
-	if(current_turn == "blue") { next_tur = "red"; }
-	else if(current_turn == "red") { next_tur = "green"; }
-	else if(current_turn == "green") { next_tur = "yellow"; }
-	else if(current_turn == "yellow") { next_tur = "blue"; }
+	if(current_turn == "blue") { 		next_tur = "red"; }
+	else if(current_turn == "red") { 	next_tur = "green"; }
+	else if(current_turn == "green") { 	next_tur = "yellow"; }
+	else if(current_turn == "yellow") { 	next_tur = "blue"; }
+	// Is this next player still in the game?
 	var valid = false;
 	for(var i = 0; i < piece_location[next_tur].length; i++) {
 		if(piece_location[next_tur][i] != -1 && 
 		get_location_type(piece_location[next_tur][i]) != "inside") {
+			// Yes this player has atleast one piece in home/outside
 			valid = true;
 			current_turn = next_tur;
 			current_action = dice_roll_msg;
-			setTimeout(function(e){ text_updater(); display_error("It's "+next_tur+"'s turn!");}, 1000);
+			setTimeout(function(e){ text_updater(); display_error("It's "+next_tur+"'s turn!"); }, 1000);
 		}
 	}
-	if(!valid) { current_turn = next_tur; if(!game_over()) next_turn(); }
+	// Nah, this player was already done
+	if(!valid) { 
+		current_turn = next_tur; 
+		// Is everyone done? if not, re-try the next player
+		if(!game_over()) 
+			next_turn(); 
+	}
 }
+// Insert this dice roll to the move set (6+2, 6+6+2 etc)
 function turn_add(number) {
 	if(number != 6) current_action = piece_select_msg;
 	turn_stack.unshift(number);
-	if(can_move_validly()) return;
+	// Adding this new move to the stack has caused no issues,
+	// Player can still make a valid move
+	if(can_move_validly()) 
+		return;
 
+	// This new dice roll was bad luck, Player should lose his current
+	// Moves because now he can't validly move
 	do_nothing = true;
-	setTimeout(function(e) { /*display_error("No valid moves!", 3000);*/ turn_stack = [];
-	next_turn(); do_nothing = false; }, 1500);
+	setTimeout(function(e) { /*display_error("No valid moves!", 3000);*/ 
+		turn_stack = [];
+		next_turn(); 
+		do_nothing = false; 
+	}, 1500);
 }
+// Move piece 	
 function turn_remove(type, index) {
+	// No dice roll in stack
 	if(turn_stack.length == 0) { display_error("No move in stack!"); return; }
+	// Has a 6
 	if(turn_stack.length >= 2) {
+		// Player wants to remove piece from home, Handle that
 		if(get_location_type(piece_location[type][index] == "spawn")) {
 			var temp = turn_stack[0]; turn_stack[0] = turn_stack[1]; turn_stack[1] = temp;
 		}
 	}
+	// Is this movemement is valid
 	if(can_move_a_piece(type, index, turn_stack[0])) {
+		// Move
 		traverse_piece(type, index, turn_stack[0]);
 		turn_stack.shift();
-		if(turn_stack.length == 0) { next_turn(); }
+		// Out of moves => next player
+		if(turn_stack.length == 0) 
+			next_turn();
 	} else { display_error("Can not move this piece! (no path)"); }
 }
+// Animate die roll	
 function dice_roll() {
-	for(var i = 0; i < 25; i++) { turn_cube(parseInt(Math.random() * 3) - 1); }
+	for(var i = 0; i < 25; i++) 
+		turn_cube(parseInt(Math.random() * 3) - 1);
 }
+///
+///
+/// Extra fun stuff
+///
+///
 function fun_randomize_safehouses() {
 	var tmp = ["red","green","yellow","blue"];
 	for(var i = 0; i < safehouses.length; i++) {
@@ -451,46 +546,70 @@ function fake_position(type, index, value) {
 	piece_location[type][index] = value;
 	gui_updater();
 }
+///
+///
+/// Extra fun stuff ends	
+///
+///
+	
+// Dice was clicked
 function dice_click(type, index) {
 	var roll = false;
-	if(do_nothing) return;
+	if(do_nothing) 
+		return;
+	// In middle of animation
 	if(dice_rolling) { display_error("PATIENCE!"); return; }
+	// Turn Stack is empty => can roll die
 	if(turn_stack.length == 0) {
 		dice_roll(); roll = true; dice_rolling = true;
 	} else {
+		// Last move was 6? OK! roll again
 		if(turn_stack[0] == 6) {
 			dice_roll(); roll = true; dice_rolling = true;
 		} else { display_error("Can not roll dice again!"); }
 	}
 	if(roll) setTimeout(function(e) { turn_add(front); text_updater(); dice_rolling = false; }, 2000);
 }
+// Correct the piece click in case of the piece being under another player's piece
 function find_correct_click(type, index) {
 	var fake = piece_location[type][index];
 	for(var i = 0; i < piece_location[current_turn].length; i++) {
+		// I found my own piece in the same location as someone else's piece
 		if(piece_location[current_turn][i] == fake) {
 			return i;
 		}
 	}
 	return -1;
 }
+// Piece was clicked	
 function piece_click(type, index) {
-	if(do_nothing) return;
+	if(do_nothing) 
+		return;
 	if(turn_stack.length > 0 && turn_stack[0] != 6) {
+		// I clicked on my own piece
 		if(type == current_turn) {
 			gui_remove_ghosts();
 			turn_remove(type, index);
 			gui_updater();
 			text_updater();
-		} else {
+		} 
+		// I clicked on someone else's piece? Is this a safe house and
+		// my piece is under someone?
+		else {
+			// Find corrected piece under
 			var correction = find_correct_click(type, index); 
-			if(correction == -1) display_error("Select your own piece!");
-			else piece_click(current_turn, correction); 
+			if(correction == -1) 
+				display_error("Select your own piece!");
+			else 
+				piece_click(current_turn, correction); 
 		}
 	} else { display_error("Need to roll dice!"); }
 }
+// Check if value is in array	
 function find_arr(what, value) {
 	for(var i = 0; i < what.length; i++) { if(what[i] == value) return true; } return false;
 }
+// Check if value is in the array for specific key-pair sequences
 function find_arr_2d(what, value, keys) {
 	var occur = [];
 	for(var i = 0; i < keys.length; i++) { 
@@ -500,52 +619,65 @@ function find_arr_2d(what, value, keys) {
 	} 
 	return occur;
 }
+// Getting the type of location from the number	
 function get_location_type(location) {
 	if(find_arr(spawns["blue"], location) || find_arr(spawns["red"], location) ||
 	find_arr(spawns["yellow"], location) || find_arr(spawns["green"], location)) {
 		return "spawn";
 	}
 	if(find_arr(inside_start["blue"], location) || find_arr(inside_start["red"], location) ||
-	find_arr(inside_start["yellow"], location) || find_arr(inside_start["green"], location)) 
-{
+	find_arr(inside_start["yellow"], location) || find_arr(inside_start["green"], location)) {
 		return "inside_start";
 	}
 	if(inside["blue"] == location || inside["red"] == location || 
 	inside["yellow"] == location || inside["green"] == location) {
 		return "inside";
 	}
-	if(find_arr(safehouses, location)) return "safe";
-	if(location == -1) return "void";
+	if(find_arr(safehouses, location)) 
+		return "safe";
+	if(location == -1) 
+		return "void";
 	return "outside";
 }
+// Draw the pieces on the board 
 function gui_updater() {
 	var types = ["blue", "red", "yellow", "green"];
 	var multiples = []; 
+	// Draw for each type
 	for(var i = 0; i < types.length; i++) {
+		// Draw for ech piece in each type
 		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			// -1 is invalid spot (If the player does not exist)
 			if(piece_location[types[i]][j] != -1) {
 				var do_something = true;
+				// Find piece position on board
 				var positions = find_arr_2d(piece_location, piece_location[types[i]][j], types); 
 				if(positions.length != 1) {
+					// Multiple pieces exist on this position
 					if(find_arr(multiples, piece_location[types[i]][j]) === false) {
-						for(var k = 0; k < positions.length; k++) multiples.push(positions[k][1]);
+						for(var k = 0; k < positions.length; k++) 
+							multiples.push(positions[k][1]);
 					} else { do_something = false; }
 				}
-				if(do_something) piece_generator(positions);
+				// Draw piece
+				if(do_something) 
+					piece_generator(positions);
 			}
 		}
 	}
 }
+// Get ID of piece from Type + Piece Number
 function piece_loc_indexes(loc_arr) {
 	return (piece_location[loc_arr[0]][loc_arr[1]]);
 }
+// Get piece colour based on location
 function gui_piece_colour(piece) {
 	var ltype = get_location_type(piece_loc_indexes(piece));
-	//var colour = "white";
 	colour = piece[0];
 	if(ltype == "spawn") { colour = "white"; }
 	return colour;g
 }
+// Generate HTML for the piece	
 function piece_generator(pieces) {
 	result = '';
 	for(var i = 0; i < pieces.length; i++) {
@@ -553,9 +685,11 @@ function piece_generator(pieces) {
 	}
 	document.getElementById("p-"+piece_loc_indexes(pieces[0])).innerHTML = result;
 }
+// Remove the pieces from the board visually
 function gui_remove_ghosts() {
-	for(var i = 0; i < types.length; i++) {
+	for(var i = 0; i < types.length; i++) {		
 		for(var j = 0; j < piece_location[types[i]].length; j++) {
+			// Found the exact ID on which it exists, if its not void, will clear it out
 			if(piece_location[types[i]][j] != -1)
 				document.getElementById("p-"+piece_location[types[i]][j]).innerHTML = "";
 		}
@@ -589,5 +723,6 @@ function hack_menu() {
 		document.getElementById('hidden').innerHTML = ""; 
 	}
 }
+// Setup	
 initialize();
 </script>
